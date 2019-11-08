@@ -1,7 +1,5 @@
 import * as faker from 'faker';
-import { Dispatch, useCallback, useEffect, useReducer } from 'react';
-
-type Maybe<T> = T | undefined;
+import { Maybe, PendingResult, pending, ok, isOk } from './result';
 
 export type Friend = {
   id: string;
@@ -17,35 +15,28 @@ const toRandomFriend = (): Friend => ({
   favorite: faker.random.boolean(),
 });
 
-export const fetchFriends = (): Promise<Friend[]> => new Promise(res => {
-  window.setTimeout(() => res(Array(faker.random.number(50)).fill(null).map(toRandomFriend)), 1000);
+let TIMER: number;
+export const fetchFriends = (): Promise<Friend[]> => new Promise((res, rej) => {
+  if (!TIMER) {
+    TIMER = window.setTimeout(() => res(Array(faker.random.number(50)).fill(null).map(toRandomFriend)), 1000);
+  } else {
+    rej(); // already fetching...
+  }
 });
 
-const setFriends = (friends: Friend[]) => ({ type: 'set_friends', friends } as const);
-const toggleFavorite = (friendId: string) => ({ type: 'toggle_favorite', friendId } as const);
-type Action = ReturnType<typeof setFriends | typeof toggleFavorite>
+export const setFriends = (friends: Friend[]) => ({ type: 'set_friends', friends } as const);
+export const toggleFavorite = (friendId: string) => ({ type: 'toggle_favorite', friendId } as const);
 
-const reducer = (state: Maybe<Friend[]>, action: Action) => {
+export const friendsReducer = (state: PendingResult<Friend[], unknown> = pending, action: Action) => {
   switch(action.type) {
     case 'set_friends':
-      return action.friends;
+      return ok(action.friends);
     case 'toggle_favorite':
-      return state!.map(f => f.id === action.friendId ? ({ ...f, favorite: !f.favorite }) : f);
+      return isOk(state) ? ok(state.value.map(f => f.id === action.friendId ? ({ ...f, favorite: !f.favorite }) : f)) : state;
     default:
       return state;
   }
 }
 
-const useDispatch = <T, U extends (...args: any) => T>(dispatch: Dispatch<T>, cb: U) => useCallback((...args: U[]) => dispatch(cb(...args)), [cb]) as U;
-
-export const useFriends = () => {
-  const [friends, dispatch] = useReducer(reducer, undefined);
-  const _setFriends = useDispatch(dispatch, setFriends);
-  const _toggleFavorite = useDispatch(dispatch, toggleFavorite);
-
-  useEffect(() => {
-    fetchFriends().then(_setFriends)
-  }, [])
-
-  return [friends, _toggleFavorite] as const;
-}
+export type Action = ReturnType<typeof setFriends | typeof toggleFavorite>;
+export type State = ReturnType<typeof friendsReducer>;
