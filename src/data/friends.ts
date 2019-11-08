@@ -15,19 +15,15 @@ const toRandomFriend = (): Friend => ({
   favorite: faker.random.boolean(),
 });
 
-let TIMER: number;
-export const fetchFriends = (): Promise<Friend[]> => new Promise((res, rej) => {
-  if (!TIMER) {
-    TIMER = window.setTimeout(() => res(Array(faker.random.number(50)).fill(null).map(toRandomFriend)), 1000);
-  } else {
-    rej(); // already fetching...
-  }
+export const fetchFriends = (): Promise<Friend[]> => new Promise(res => {
+  console.log('FETCHING!');
+  window.setTimeout(() => res(Array(faker.random.number(50)).fill(null).map(toRandomFriend)), 1000);
 });
 
 export const setFriends = (friends: Friend[]) => ({ type: 'set_friends', friends } as const);
 export const toggleFavorite = (friendId: string) => ({ type: 'toggle_favorite', friendId } as const);
 
-export const friendsReducer = (state: PendingResult<Friend[], unknown> = pending, action: Action) => {
+export const friendsReducer = (state: PendingResult<Friend[], unknown>, action: Action) => {
   switch(action.type) {
     case 'set_friends':
       return ok(action.friends);
